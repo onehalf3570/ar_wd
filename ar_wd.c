@@ -3,12 +3,21 @@
 #include <avr/sleep.h>
 #include <avr/wdt.h>
 
+#define DEFAULT_COUNTER_VALUE 10
+#define PING_LED PB1
+#define WARNING_LED PB4
+#define RELAY PB2
+#define BUZZER PB3
+
+volatile int counter=DEFAULT_COUNTER_VALUE; //current counter, decreases every second in COMP_A ISR
+int max_counter_value=DEFAULT_COUNTER_VALUE; //user-adjustable maximum counter value
+
 int main (void)
 {
   wdt_enable(WDTO_2S);
 
-  /* set pin 5 of PORTB for output*/
-  DDRB |= _BV(DDB5);
+  /* set pins of PORTB for output*/
+  DDRB |= _BV(DDB5) | _BV(DDB1) | _BV (DDB4) | _BV(DDB2);
   TCCR1B = _BV (WGM12); //CTC enable
   TCCR1B |= _BV(CS10) | _BV(CS12); //prescaler=1024
  
@@ -30,6 +39,20 @@ int main (void)
 
 ISR (TIMER1_COMPA_vect)
 {
-  /* set pin 5 high to turn led on */
-  PORTB ^= _BV(PORTB5);
+  PORTB ^= _BV(PORTB1) | _BV(PORTB4);
+  counter--;
+  if (counter == 1)
+  { 
+    //warn about upcoming reset
+    PORTB |= _BV(PORTB5);
+    PORTB |= _BV(PORTB2);
+  }
+  if (!counter)
+  {
+    //perform reset
+    PORTB &= ~_BV(PORTB5);
+    PORTB &= ~_BV(PORTB2);
+    //PORTB ^= _BV(PORTB5);
+    counter = DEFAULT_COUNTER_VALUE; //reset to default value to allow PC to boot successfully
+  }
 }
