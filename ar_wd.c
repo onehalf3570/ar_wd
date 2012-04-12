@@ -2,22 +2,35 @@
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
 #include <avr/wdt.h>
+#include <stdio.h>
+
+#include "uart.h"
 
 #define DEFAULT_COUNTER_VALUE 10
-#define PING_LED PB1
-#define WARNING_LED PB4
-#define RELAY PB2
-#define BUZZER PB3
+#define PING_LED PORTB1
+#define WARNING_LED PORTB4
+#define RELAY PORTB2
+#define BUZZER PORTB3
+#define HEARTBEAT_LED PORTB5
 
 volatile int counter=DEFAULT_COUNTER_VALUE; //current counter, decreases every second in COMP_A ISR
 int max_counter_value=DEFAULT_COUNTER_VALUE; //user-adjustable maximum counter value
+
+FILE uart_output = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_WRITE);
+FILE uart_input = FDEV_SETUP_STREAM(NULL, uart_getchar, _FDEV_SETUP_READ);
 
 int main (void)
 {
   wdt_enable(WDTO_2S);
 
+  uart_init();
+  stdout=&uart_output;
+  stdin=&uart_input;
+
   /* set pins of PORTB for output*/
-  DDRB |= _BV(DDB5) | _BV(DDB1) | _BV (DDB4) | _BV(DDB2);
+  DDRB |= _BV(DDB5) | _BV(DDB1) | _BV (DDB4) | _BV(DDB2);// | _BV (DDB3);
+
+  //enable timer for counting seconds
   TCCR1B = _BV (WGM12); //CTC enable
   TCCR1B |= _BV(CS10) | _BV(CS12); //prescaler=1024
  
@@ -30,6 +43,20 @@ int main (void)
 
   for (;;)
   {
+    if bit_is_set(UCSR0A, RXC0)
+    {
+      char recv = UDR0;
+      if (recv == 'r')
+      {
+        PORTB |= _BV (PING_LED);
+        counter=max_counter_value;
+        puts ("resetting timer\n");
+        PORTB &= ~_BV(PING_LED);
+      } else
+      {
+        puts ("wrong command\n");
+      }
+    }
     wdt_reset(); 
     sleep_mode();
   }
@@ -39,20 +66,31 @@ int main (void)
 
 ISR (TIMER1_COMPA_vect)
 {
-  PORTB ^= _BV(PORTB1) | _BV(PORTB4);
+  PORTB ^= _BV(HEARTBEAT_LED);
+ 
   counter--;
   if (counter == 1)
   { 
-    //warn about upcoming reset
-    PORTB |= _BV(PORTB5);
-    PORTB |= _BV(PORTB2);
+    //warn about reset
+    PORTB |= _BV(WARNING_LED);
+
+    //do reset
+    PORTB |= _BV(RELAY);
+
+    /*
+    //enable timer for buzzer
+    TCCR0B = _BV (WGM12);
+    TCCR0B |= 
+    //TCCR0B |= _BV (CS10
+    OCR0A = 6666;
+    */
   }
   if (!counter)
   {
-    //perform reset
-    PORTB &= ~_BV(PORTB5);
-    PORTB &= ~_BV(PORTB2);
-    //PORTB ^= _BV(PORTB5);
+    //reset is done
+    PORTB &= ~_BV(WARNING_LED);
+    PORTB &= ~_BV(RELAY);
+
     counter = DEFAULT_COUNTER_VALUE; //reset to default value to allow PC to boot successfully
   }
 }
