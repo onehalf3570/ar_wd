@@ -7,11 +7,12 @@
 #include "uart.h"
 
 #define DEFAULT_COUNTER_VALUE 10
+
 #define PING_LED PORTB1
 #define WARNING_LED PORTB4
 #define RELAY PORTB2
 #define BUZZER PORTB3
-#define HEARTBEAT_LED PORTB5
+#define HEARTBEAT_LED PORTB5 //yellow arduino led
 
 volatile int counter=DEFAULT_COUNTER_VALUE; //current counter, decreases every second in COMP_A ISR
 int max_counter_value=DEFAULT_COUNTER_VALUE; //user-adjustable maximum counter value
@@ -28,7 +29,7 @@ int main (void)
   stdin=&uart_input;
 
   /* set pins of PORTB for output*/
-  DDRB |= _BV(DDB5) | _BV(DDB1) | _BV (DDB4) | _BV(DDB2);// | _BV (DDB3);
+  DDRB |= _BV(DDB5) | _BV(DDB1) | _BV (DDB4) | _BV(DDB2) | _BV (DDB3);
 
   //enable timer for counting seconds
   TCCR1B = _BV (WGM12); //CTC enable
@@ -36,10 +37,11 @@ int main (void)
  
   TIMSK1 |= _BV (OCIE1A); //enable interrupt
 
-  sei(); //enable interrupts
-
   //FIXME: this should be calculated from F_CPU
   OCR1A = 15624; //1 second for 16MHz and prescaler=1024
+
+
+  sei(); //enable interrupts
 
   for (;;)
   {
@@ -77,13 +79,13 @@ ISR (TIMER1_COMPA_vect)
     //do reset
     PORTB |= _BV(RELAY);
 
-    /*
     //enable timer for buzzer
-    TCCR0B = _BV (WGM12);
-    TCCR0B |= 
-    //TCCR0B |= _BV (CS10
-    OCR0A = 6666;
-    */
+    TCCR2A = _BV (WGM21); //CTC mode
+    TCCR2A |= _BV (COM2A0); //toggle OC2A on compare match
+    
+    TCCR2B = _BV (CS22); //prescaler = 64
+
+    OCR2A = 104; //2400 Hz with prescaler = 64
   }
   if (!counter)
   {
@@ -91,6 +93,11 @@ ISR (TIMER1_COMPA_vect)
     PORTB &= ~_BV(WARNING_LED);
     PORTB &= ~_BV(RELAY);
 
+    //disable buzzer
+    TCCR2B = 0;
+    TCCR2A = 0;
+
+    //reset counter
     counter = DEFAULT_COUNTER_VALUE; //reset to default value to allow PC to boot successfully
   }
 }
