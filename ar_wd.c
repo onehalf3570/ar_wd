@@ -14,8 +14,15 @@
 #define BUZZER PORTB3
 #define HEARTBEAT_LED PORTB5 //yellow arduino led
 
+#define VARIABLE_FREQ
+#define DEFAULT_FREQ 104 //2400 Hz from 16Mhz input with prescaler = 64
+
 volatile int counter=DEFAULT_COUNTER_VALUE; //current counter, decreases every second in COMP_A ISR
 int max_counter_value=DEFAULT_COUNTER_VALUE; //user-adjustable maximum counter value
+
+#ifdef VARIABLE_FREQ
+  volatile uint8_t freq=DEFAULT_FREQ; //current buzzer freqency
+#endif
 
 FILE uart_output = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_WRITE);
 FILE uart_input = FDEV_SETUP_STREAM(NULL, uart_getchar, _FDEV_SETUP_READ);
@@ -80,12 +87,17 @@ ISR (TIMER1_COMPA_vect)
     PORTB |= _BV(RELAY);
 
     //enable timer for buzzer
-    TCCR2A = _BV (WGM21); //CTC mode
+    #ifdef VARIABLE_FREQ
+      TIMSK2 |= _BV (OCIE2A); //enable interrupt
+    #else
+      TCCR2A = _BV (WGM21); //CTC mode
+    #endif
+
     TCCR2A |= _BV (COM2A0); //toggle OC2A on compare match
     
     TCCR2B = _BV (CS22); //prescaler = 64
 
-    OCR2A = 104; //2400 Hz with prescaler = 64
+    OCR2A = DEFAULT_FREQ; 
   }
   if (!counter)
   {
@@ -96,8 +108,18 @@ ISR (TIMER1_COMPA_vect)
     //disable buzzer
     TCCR2B = 0;
     TCCR2A = 0;
+    #ifdef VARIABLE_FREQ
+      TIMSK2 = 0;
+    #endif
 
     //reset counter
     counter = DEFAULT_COUNTER_VALUE; //reset to default value to allow PC to boot successfully
   }
 }
+
+#ifdef VARIABLE_FREQ
+ISR (TIMER2_COMPA_vect)
+{
+  OCR2A=freq--;
+}
+#endif
