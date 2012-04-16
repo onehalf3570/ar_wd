@@ -2,6 +2,7 @@
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
 #include <avr/wdt.h>
+#include <avr/delay.h>
 #include <stdio.h>
 
 #include "uart.h"
@@ -14,15 +15,11 @@
 #define BUZZER PORTB3
 #define HEARTBEAT_LED PORTB5 //yellow arduino led
 
-#define VARIABLE_FREQ
-#define DEFAULT_FREQ 104 //2400 Hz from 16Mhz input with prescaler = 64
+#define DEFAULT_FREQ_2400 104 //2400 Hz from 16Mhz input with prescaler = 64
+#define DEFAULT_FREQ_3000 83
 
 volatile int counter=DEFAULT_COUNTER_VALUE; //current counter, decreases every second in COMP_A ISR
 int max_counter_value=DEFAULT_COUNTER_VALUE; //user-adjustable maximum counter value
-
-#ifdef VARIABLE_FREQ
-  volatile uint8_t freq=DEFAULT_FREQ; //current buzzer freqency
-#endif
 
 FILE uart_output = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_WRITE);
 FILE uart_input = FDEV_SETUP_STREAM(NULL, uart_getchar, _FDEV_SETUP_READ);
@@ -78,29 +75,33 @@ ISR (TIMER1_COMPA_vect)
   PORTB ^= _BV(HEARTBEAT_LED);
  
   counter--;
-  if (counter == 1)
+  if (counter == 0)
   { 
-    //warn about reset
+    //light up warning led
     PORTB |= _BV(WARNING_LED);
 
     //do reset
     PORTB |= _BV(RELAY);
 
     //enable timer for buzzer
-    #ifdef VARIABLE_FREQ
-      TIMSK2 |= _BV (OCIE2A); //enable interrupt
-    #else
-      TCCR2A = _BV (WGM21); //CTC mode
-    #endif
+    TCCR2A = _BV (WGM21); //CTC mode
 
     TCCR2A |= _BV (COM2A0); //toggle OC2A on compare match
     
     TCCR2B = _BV (CS22); //prescaler = 64
 
-    OCR2A = DEFAULT_FREQ; 
-  }
-  if (!counter)
-  {
+    OCR2A = DEFAULT_FREQ_2400;
+
+    //disable timer interrupts
+    TIMSK1 = 0;
+
+    _delay_ms (500);
+    OCR2A = DEFAULT_FREQ_3000;
+    _delay_ms (500);
+
+    //enable timer interrupts
+    TIMSK1 |= _BV (OCIE1A); 
+
     //reset is done
     PORTB &= ~_BV(WARNING_LED);
     PORTB &= ~_BV(RELAY);
@@ -108,18 +109,8 @@ ISR (TIMER1_COMPA_vect)
     //disable buzzer
     TCCR2B = 0;
     TCCR2A = 0;
-    #ifdef VARIABLE_FREQ
-      TIMSK2 = 0;
-    #endif
 
     //reset counter
     counter = DEFAULT_COUNTER_VALUE; //reset to default value to allow PC to boot successfully
   }
 }
-
-#ifdef VARIABLE_FREQ
-ISR (TIMER2_COMPA_vect)
-{
-  OCR2A=freq--;
-}
-#endif
