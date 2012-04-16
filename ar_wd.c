@@ -93,15 +93,15 @@ ISR (TIMER1_COMPA_vect)
 
     OCR2A = DEFAULT_FREQ_2400;
 
-    //disable timer interrupts
-    TIMSK1 = 0;
+    //disable all interrupts
+    //cli();
 
     _delay_ms (500);
     OCR2A = DEFAULT_FREQ_3000;
     _delay_ms (500);
 
-    //enable timer interrupts
-    TIMSK1 |= _BV (OCIE1A); 
+    //enable interrupts
+    //sei();
 
     //reset is done
     PORTB &= ~_BV(WARNING_LED);
