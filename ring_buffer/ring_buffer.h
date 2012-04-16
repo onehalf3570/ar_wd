@@ -3,8 +3,8 @@
 struct buf_info
 {
   unsigned char * buf;
-  unsigned char * read_ptr, write_ptr;
-  int size;
+  unsigned int read_ptr, write_ptr;
+  unsigned int size;
 };
 
 #define EEMPTY -1

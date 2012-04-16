@@ -9,7 +9,9 @@ ar_wd.o: ar_wd.c
 
 uart.o: uart.c
 
-ar_wd: ar_wd.o uart.o
+ring_buffer/ring_buffer.o: ring_buffer/ring_buffer.c
+
+ar_wd: ar_wd.o uart.o ring_buffer/ring_buffer.o
 
 ar_wd.hex: ar_wd
 	$(OBJCOPY) -O ihex -R .eeprom $< $@
@@ -18,4 +20,4 @@ upload: ar_wd.hex
 	avrdude -F -V -c arduino -p ATMEGA328P -P /dev/ttyACM0 -b 115200 -U flash:w:$<
 
 clean:
-	rm -rf uart.o ar_wd.o ar_wd.hex ar_wd
+	rm -rf uart.o ar_wd.o ar_wd.hex ar_wd ring_buffer/ring_buffer.o

@@ -1,5 +1,8 @@
 #include "ring_buffer.h"
 
+//read_ptr == write_ptr : buffer is empty
+//read_ptr == write_ptr+1 : buffer is full
+
 void init (struct buf_info * bi, unsigned char * buf_ptr, int size)
 {
   bi->buf = buf_ptr;
@@ -18,13 +21,15 @@ int write (struct buf_info * bi, unsigned char c)
   }
 }
 
-int read (struct buf_info * buf)
+int read (struct buf_info * bi)
 {
   if ((bi->write_ptr + 1) % bi->size == bi->read_ptr)
   {
     return EEMPTY;
   } else
   {
-
+    char ret = bi->buf[bi->read_ptr];
+    bi->read_ptr = (bi->read_ptr + 1) % bi->size;
+    return ret;
   }
 }

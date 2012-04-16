@@ -1,3 +1,4 @@
+CFLAGS=-g
 all: rtest
 
 ring_buffer.o: ring_buffer.c

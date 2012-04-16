@@ -2,10 +2,11 @@
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
 #include <avr/wdt.h>
-#include <avr/delay.h>
+#include <util/delay.h>
 #include <stdio.h>
 
 #include "uart.h"
+#include "ring_buffer/ring_buffer.h"
 
 #define DEFAULT_COUNTER_VALUE 10
 
@@ -17,6 +18,9 @@
 
 #define DEFAULT_FREQ_2400 104 //2400 Hz from 16Mhz input with prescaler = 64
 #define DEFAULT_FREQ_3000 83
+
+//FIXME: this should be calculated from F_CPU
+#define FREQ_1S 15624 //1 second for 16MHz and prescaler=1024
 
 volatile int counter=DEFAULT_COUNTER_VALUE; //current counter, decreases every second in COMP_A ISR
 int max_counter_value=DEFAULT_COUNTER_VALUE; //user-adjustable maximum counter value
@@ -41,9 +45,7 @@ int main (void)
  
   TIMSK1 |= _BV (OCIE1A); //enable interrupt
 
-  //FIXME: this should be calculated from F_CPU
-  OCR1A = 15624; //1 second for 16MHz and prescaler=1024
-
+  OCR1A = FREQ_1S;
 
   sei(); //enable interrupts
 
