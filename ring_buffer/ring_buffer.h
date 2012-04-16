@@ -9,7 +9,7 @@ struct buf_info
 
 #define EEMPTY -1
 
-void init (struct buf_info*, unsigned char *, int);
-int write (struct buf_info*, unsigned char);
-int read (struct buf_info*);
+void rb_init (struct buf_info*, unsigned char *, int);
+int rb_write (struct buf_info*, unsigned char);
+int rb_read (struct buf_info*);
 #endif

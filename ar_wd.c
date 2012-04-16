@@ -19,6 +19,8 @@
 #define DEFAULT_FREQ_2400 104 //2400 Hz from 16Mhz input with prescaler = 64
 #define DEFAULT_FREQ_3000 83
 
+#define UART_FIFO_SIZE 64
+
 //FIXME: this should be calculated from F_CPU
 #define FREQ_1S 15624 //1 second for 16MHz and prescaler=1024
 
@@ -28,6 +30,11 @@ int max_counter_value=DEFAULT_COUNTER_VALUE; //user-adjustable maximum counter v
 FILE uart_output = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_WRITE);
 FILE uart_input = FDEV_SETUP_STREAM(NULL, uart_getchar, _FDEV_SETUP_READ);
 
+unsigned char uart_recv_buffer [UART_FIFO_SIZE+1];
+unsigned char uart_trns_buffer [UART_FIFO_SIZE+1];
+
+struct buf_info uart_rx, uart_tx;
+
 int main (void)
 {
   wdt_enable(WDTO_2S);
@@ -35,6 +42,12 @@ int main (void)
   uart_init();
   stdout=&uart_output;
   stdin=&uart_input;
+
+  rb_init (&uart_rx, uart_recv_buffer, UART_FIFO_SIZE+1);
+  rb_init (&uart_tx, uart_trns_buffer, UART_FIFO_SIZE+1);
+
+  //enable uart interrupts
+  UCSR0B |= _BV(RXCIE0);
 
   /* set pins of PORTB for output*/
   DDRB |= _BV(DDB5) | _BV(DDB1) | _BV (DDB4) | _BV(DDB2) | _BV (DDB3);
@@ -51,20 +64,6 @@ int main (void)
 
   for (;;)
   {
-    if bit_is_set(UCSR0A, RXC0)
-    {
-      char recv = UDR0;
-      if (recv == 'r')
-      {
-        PORTB |= _BV (PING_LED);
-        counter=max_counter_value;
-        puts ("resetting timer\n");
-        PORTB &= ~_BV(PING_LED);
-      } else
-      {
-        puts ("wrong command\n");
-      }
-    }
     wdt_reset(); 
     sleep_mode();
   }
@@ -114,5 +113,26 @@ ISR (TIMER1_COMPA_vect)
 
     //reset counter
     counter = DEFAULT_COUNTER_VALUE; //reset to default value to allow PC to boot successfully
+  }
+}
+
+ISR (USART_RX_vect)
+{
+  if bit_is_set(UCSR0A, RXC0)
+  {
+    char recv = UDR0;
+    putchar(recv);
+    putchar('\n');
+
+    if (recv == 'r')
+    {
+      PORTB |= _BV (PING_LED);
+      counter=max_counter_value;
+      puts ("resetting timer\n");
+      PORTB &= ~_BV(PING_LED);
+    } else
+    {
+      puts ("wrong command\n");
+    }
   }
 }

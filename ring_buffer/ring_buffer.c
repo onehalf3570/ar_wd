@@ -3,7 +3,7 @@
 //read_ptr == write_ptr : buffer is empty
 //read_ptr == write_ptr+1 : buffer is full
 
-void init (struct buf_info * bi, unsigned char * buf_ptr, int size)
+void rb_init (struct buf_info * bi, unsigned char * buf_ptr, int size)
 {
   bi->buf = buf_ptr;
   bi->read_ptr=0;
@@ -11,7 +11,7 @@ void init (struct buf_info * bi, unsigned char * buf_ptr, int size)
   bi->size=size;
 }
 
-int write (struct buf_info * bi, unsigned char c)
+int rb_write (struct buf_info * bi, unsigned char c)
 {
   bi->buf[bi->write_ptr] = c;
   bi->write_ptr = (bi->write_ptr + 1) % bi->size;
@@ -21,7 +21,7 @@ int write (struct buf_info * bi, unsigned char c)
   }
 }
 
-int read (struct buf_info * bi)
+int rb_read (struct buf_info * bi)
 {
   if ((bi->write_ptr + 1) % bi->size == bi->read_ptr)
   {
