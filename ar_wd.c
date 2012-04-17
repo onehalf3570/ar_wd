@@ -24,6 +24,10 @@
 //FIXME: this should be calculated from F_CPU
 #define FREQ_1S 15624 //1 second for 16MHz and prescaler=1024
 
+#define PING_CMD "ping"
+#define SHOW_CMD "show"
+#define SET_CMD "set"
+
 volatile int counter=DEFAULT_COUNTER_VALUE; //current counter, decreases every second in COMP_A ISR
 int max_counter_value=DEFAULT_COUNTER_VALUE; //user-adjustable maximum counter value
 
@@ -31,9 +35,8 @@ FILE uart_output = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_WRITE);
 FILE uart_input = FDEV_SETUP_STREAM(NULL, uart_getchar, _FDEV_SETUP_READ);
 
 unsigned char uart_recv_buffer [UART_FIFO_SIZE+1];
-unsigned char uart_trns_buffer [UART_FIFO_SIZE+1];
 
-struct buf_info uart_rx, uart_tx;
+struct buf_info uart_rx;
 
 int main (void)
 {
@@ -43,8 +46,10 @@ int main (void)
   stdout=&uart_output;
   stdin=&uart_input;
 
+  //command prompt
+  putchar ('>');
+
   rb_init (&uart_rx, uart_recv_buffer, UART_FIFO_SIZE+1);
-  rb_init (&uart_tx, uart_trns_buffer, UART_FIFO_SIZE+1);
 
   //enable uart interrupts
   UCSR0B |= _BV(RXCIE0);
@@ -119,17 +124,55 @@ ISR (TIMER1_COMPA_vect)
 ISR (USART_RX_vect)
 {
   char recv = UDR0;
+  //echo
   putchar(recv);
-  putchar('\n');
 
-  if (recv == 'r')
+  rb_write(&uart_rx, recv);
+
+  if (recv == '\r')
   {
-    PORTB |= _BV (PING_LED);
-    counter=max_counter_value;
-    puts ("resetting timer\n");
-    PORTB &= ~_BV(PING_LED);
-  } else
-  {
-    puts ("wrong command\n");
+    putchar('\n');
+
+    //process command
+    char cmd [UART_FIFO_SIZE+1];
+    int npos = 0;
+    int chr = rb_read (&uart_rx);
+    while (chr != EEMPTY)
+    {
+      cmd[npos++]=(char) chr;
+      chr = rb_read(&uart_rx);
+    }
+
+    //strip \r\n at the end
+    while (cmd[npos-1] == '\r' || cmd [npos-1] == '\n')
+    {
+      cmd[--npos]=0;
+    }
+
+    printf ("npos=%d\r\n", npos);
+    if (npos > 0)
+    {
+      if (strncmp (cmd, PING_CMD,npos) == 0)
+      {
+        PORTB |= _BV (PING_LED);
+        counter=max_counter_value;
+        printf ("resetting timer to %d\r\n", max_counter_value);
+        PORTB &= ~_BV(PING_LED);
+      } else if (strncmp (cmd, SHOW_CMD, npos) == 0)
+      {
+        printf ("max_counter_value is %d\r\n", max_counter_value);
+      } else if ((npos >= sizeof(SET_CMD)-1) && (strncmp (cmd, SET_CMD, sizeof (SET_CMD)-1) == 0))
+      {
+        int new_cval = (int)strtol (cmd+sizeof(SET_CMD)-1, NULL, 10);
+        new_cval = new_cval ? new_cval : 1;
+        printf ("stub: setting max_counter_value to %d\r\n", new_cval);
+        max_counter_value=new_cval;
+      } else
+      {
+        printf ("wrong command: '%s' (size=%d)\r\n",cmd,npos);
+      }
+    }
+
+    putchar ('>');
   }
 }
