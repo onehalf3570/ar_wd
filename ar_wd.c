@@ -118,21 +118,18 @@ ISR (TIMER1_COMPA_vect)
 
 ISR (USART_RX_vect)
 {
-  if bit_is_set(UCSR0A, RXC0)
-  {
-    char recv = UDR0;
-    putchar(recv);
-    putchar('\n');
+  char recv = UDR0;
+  putchar(recv);
+  putchar('\n');
 
-    if (recv == 'r')
-    {
-      PORTB |= _BV (PING_LED);
-      counter=max_counter_value;
-      puts ("resetting timer\n");
-      PORTB &= ~_BV(PING_LED);
-    } else
-    {
-      puts ("wrong command\n");
-    }
+  if (recv == 'r')
+  {
+    PORTB |= _BV (PING_LED);
+    counter=max_counter_value;
+    puts ("resetting timer\n");
+    PORTB &= ~_BV(PING_LED);
+  } else
+  {
+    puts ("wrong command\n");
   }
 }
