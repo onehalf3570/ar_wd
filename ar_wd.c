@@ -27,6 +27,9 @@
 #define PING_CMD "ping"
 #define SHOW_CMD "show"
 #define SET_CMD "set"
+#define HELP_CMD "help"
+
+const char help_reply[] = {"help - this help\r\nping - reset timer\r\nshow - show maximum timer value\r\nset <value> - set maximum timer value\r\n"};
 
 volatile int counter=DEFAULT_COUNTER_VALUE; //current counter, decreases every second in COMP_A ISR
 int max_counter_value=DEFAULT_COUNTER_VALUE; //user-adjustable maximum counter value
@@ -149,7 +152,7 @@ ISR (USART_RX_vect)
       cmd[--npos]=0;
     }
 
-    printf ("npos=%d\r\n", npos);
+    //printf ("npos=%d\r\n", npos);
     if (npos > 0)
     {
       if (strncmp (cmd, PING_CMD,npos) == 0)
@@ -161,6 +164,9 @@ ISR (USART_RX_vect)
       } else if (strncmp (cmd, SHOW_CMD, npos) == 0)
       {
         printf ("max_counter_value is %d\r\n", max_counter_value);
+      } else if (strncmp (cmd, HELP_CMD, npos) == 0)
+      {
+        puts (help_reply);
       } else if ((npos >= sizeof(SET_CMD)-1) && (strncmp (cmd, SET_CMD, sizeof (SET_CMD)-1) == 0))
       {
         int new_cval = (int)strtol (cmd+sizeof(SET_CMD)-1, NULL, 10);
