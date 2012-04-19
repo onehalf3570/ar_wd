@@ -8,7 +8,7 @@
 #include "uart.h"
 #include "ring_buffer/ring_buffer.h"
 
-#define DEFAULT_COUNTER_VALUE 10
+#define DEFAULT_COUNTER_VALUE 300 //5 mins should be enough for fsck to finish
 
 #define PING_LED PORTB1
 #define WARNING_LED PORTB4
@@ -152,10 +152,10 @@ ISR (USART_RX_vect)
       cmd[--npos]=0;
     }
 
-    //printf ("npos=%d\r\n", npos);
+    printf ("npos=%d, str='%s'\r\n", npos, cmd);
     if (npos > 0)
     {
-      if (strncmp (cmd, PING_CMD,npos) == 0)
+      if (strncmp (cmd, PING_CMD, npos) == 0)
       {
         PORTB |= _BV (PING_LED);
         counter=max_counter_value;
@@ -169,13 +169,20 @@ ISR (USART_RX_vect)
         puts (help_reply);
       } else if ((npos >= sizeof(SET_CMD)-1) && (strncmp (cmd, SET_CMD, sizeof (SET_CMD)-1) == 0))
       {
-        int new_cval = (int)strtol (cmd+sizeof(SET_CMD)-1, NULL, 10);
-        new_cval = new_cval ? new_cval : 1;
-        printf ("stub: setting max_counter_value to %d\r\n", new_cval);
-        max_counter_value=new_cval;
+        char *endptr;
+        unsigned long int new_cval = strtoul (cmd+sizeof(SET_CMD)-1, &endptr, 10);
+        //unsigned int new_cval = atol (cmd+sizeof(SET_CMD));
+        if (new_cval == 0)
+        {
+          printf ("error parsing number at pos %d (symbol='%hhu')\r\n", endptr - cmd, *endptr);
+        } else
+        {
+          printf ("setting max_counter_value to %d\r\n", new_cval);
+          max_counter_value=new_cval;
+        }
       } else
       {
-        printf ("wrong command: '%s' (size=%d)\r\n",cmd,npos);
+        printf ("unknown command: '%s' (size=%d) - try 'help'\r\n",cmd,npos);
       }
     }
 
