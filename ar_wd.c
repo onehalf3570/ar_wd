@@ -31,8 +31,8 @@
 
 const char help_reply[] = {"help - this help\r\nping - reset timer\r\nshow - show maximum timer value\r\nset <value> - set maximum timer value\r\n"};
 
-volatile int counter=DEFAULT_COUNTER_VALUE; //current counter, decreases every second in COMP_A ISR
-int max_counter_value=DEFAULT_COUNTER_VALUE; //user-adjustable maximum counter value
+volatile unsigned long int counter=DEFAULT_COUNTER_VALUE; //current counter, decreases every second in COMP_A ISR
+unsigned long int max_counter_value=DEFAULT_COUNTER_VALUE; //user-adjustable maximum counter value
 
 FILE uart_output = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_WRITE);
 FILE uart_input = FDEV_SETUP_STREAM(NULL, uart_getchar, _FDEV_SETUP_READ);
@@ -99,13 +99,13 @@ ISR (TIMER1_COMPA_vect)
     
     TCCR2B = _BV (CS22); //prescaler = 64
 
-    OCR2A = DEFAULT_FREQ_2400;
+    OCR2A = DEFAULT_FREQ_3000;
 
     //disable all interrupts
     //cli();
 
     _delay_ms (500);
-    OCR2A = DEFAULT_FREQ_3000;
+    OCR2A = DEFAULT_FREQ_2400;
     _delay_ms (500);
 
     //enable interrupts
@@ -152,7 +152,7 @@ ISR (USART_RX_vect)
       cmd[--npos]=0;
     }
 
-    printf ("npos=%d, str='%s'\r\n", npos, cmd);
+    //printf ("npos=%d, str='%s'\r\n", npos, cmd);
     if (npos > 0)
     {
       if (strncmp (cmd, PING_CMD, npos) == 0)
@@ -169,20 +169,20 @@ ISR (USART_RX_vect)
         puts (help_reply);
       } else if ((npos >= sizeof(SET_CMD)-1) && (strncmp (cmd, SET_CMD, sizeof (SET_CMD)-1) == 0))
       {
-        char *endptr;
+        char *endptr=0;
         unsigned long int new_cval = strtoul (cmd+sizeof(SET_CMD)-1, &endptr, 10);
-        //unsigned int new_cval = atol (cmd+sizeof(SET_CMD));
+        //printf ("*endptr = %hhu\n", *endptr);
         if (new_cval == 0)
         {
-          printf ("error parsing number at pos %d (symbol='%hhu')\r\n", endptr - cmd, *endptr);
+          printf ("error parsing number at pos %d (symbol='%c')\r\n", endptr - cmd, *endptr);
         } else
         {
-          printf ("setting max_counter_value to %d\r\n", new_cval);
+          printf ("setting max_counter_value to %lu\r\n", new_cval);
           max_counter_value=new_cval;
         }
       } else
       {
-        printf ("unknown command: '%s' (size=%d) - try 'help'\r\n",cmd,npos);
+        printf ("unknown command: '%s' - try 'help'\r\n",cmd);
       }
     }
 
