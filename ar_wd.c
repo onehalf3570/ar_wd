@@ -9,6 +9,7 @@
 #include "ring_buffer/ring_buffer.h"
 
 #define DEFAULT_COUNTER_VALUE 300 //5 mins should be enough for fsck to finish
+#define MINIMAL_COUNTER_VALUE 60 //protect against 'set 1' and similar
 
 #define PING_LED PORTB1
 #define WARNING_LED PORTB4
@@ -177,8 +178,8 @@ ISR (USART_RX_vect)
           printf ("error parsing number at pos %d (symbol='%c')\r\n", endptr - cmd, *endptr);
         } else
         {
-          printf ("setting max_counter_value to %lu\r\n", new_cval);
-          max_counter_value=new_cval;
+          max_counter_value=new_cval < MINIMAL_COUNTER_VALUE? MINIMAL_COUNTER_VALUE: new_cval;
+          printf ("setting max_counter_value to %lu\r\n", max_counter_value);
         }
       } else
       {
