@@ -4,18 +4,37 @@ DEV=/dev/ttyACM0
 PING_INTERVAL=60
 READ_GATHER_TIMEOUT=1
 
+wait_for_dev() {
+  while [ ! -c $DEV ]; do
+    logger "watchdog: $DEV does not exist or not a character device"
+    sleep 3;
+  done
+}
+
 #non-blocking read from $DEV
-/bin/stty -F $DEV clocal raw -echo -icanon time 0 min 0
+init_dev() {
+  /bin/stty -F $DEV clocal raw -echo -icanon time 0 min 0
+}
 
 (
+  wait_for_dev;
+  init_dev;
   exec 3<>$DEV
+
   #allow arduino to boot
   sleep 3
   while true; do
     echo -ne "ping\r" >&3
     res=$?
     if [ $res -ne 0 ]; then
-      logger "watchdog pinging failed with exit code=$res"
+      logger "watchdog pinging failed with exit code=$res, trying to reopen $DEV"
+
+      exec 3<&-
+      wait_for_dev;
+      init_dev;
+
+      exec 3<>$DEV
+
       #exit 1
     else
       sleep $READ_GATHER_TIMEOUT
@@ -35,4 +54,5 @@ READ_GATHER_TIMEOUT=1
     fi
     sleep `expr $PING_INTERVAL - $READ_GATHER_TIMEOUT`
   done
+  exec 3<&-
 ) &
