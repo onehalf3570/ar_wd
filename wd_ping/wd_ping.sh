@@ -13,7 +13,7 @@ wait_for_dev() {
 
 #non-blocking read from $DEV
 init_dev() {
-  /bin/stty -F $DEV clocal raw -echo -icanon time 0 min 0
+  /bin/stty -F $DEV 115200 clocal raw -echo -icanon time 0 min 0
 }
 
 (
